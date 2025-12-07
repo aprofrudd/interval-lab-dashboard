@@ -1,0 +1,8 @@
+streamlit
+fitparse
+pandas
+plotly
+scipy
+numpy
+matplotlib
+spm1d
