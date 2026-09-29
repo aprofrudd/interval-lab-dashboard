@@ -166,7 +166,7 @@ This tool is designed to analyze the physics of your speed during interval sessi
     * **Single Lap:** Use this to see your "Acceleration Profile." The app will auto-detect when you stopped driving and started holding (Break Point).
     * **Overlay:** Select multiple laps to see them stacked on top of each other.
 3.  **Group Hypothesis Tab:** * Select a "Group A" (e.g., Early Laps) and "Group B" (e.g., Late Laps).
-    * The app will run a statistical test (SPM) to prove exactly *where* in the interval you are getting slower.
+    * The app will run a statistical test (SPM) to show *where* in the interval you are getting slower.
 4.  **Fatigue Trend Tab:**
     * Select a full sequence (e.g., Laps 1 to 10).
     * The app calculates a "Slope of Decay" for every second of the rep to show how much speed you lose per lap.
@@ -321,16 +321,25 @@ if uploaded_file is not None:
                                 with st.expander("Warnings"): 
                                     for w in w1+w2: st.write(w)
                             
+                            ti = None
                             if len(Y1)<2 or len(Y2)<2: st.error("Not enough data.")
                             else:
-                                if "Parametric" in test_type:
+                                # "Parametric" is also a substring of "Non-Parametric", so test the start of the label
+                                if test_type.startswith("Parametric"):
                                     t = spm1d.stats.ttest2(Y1, Y2, equal_var=False)
                                     ti = t.inference(alpha=0.05, two_tailed=True)
                                 else:
-                                    with st.spinner("Running 1000 Permutations..."):
-                                        t = spm1d.stats.nonparam.ttest2(Y1, Y2)
-                                        ti = t.inference(alpha=0.05, two_tailed=True, iterations=1000)
+                                    t = spm1d.stats.nonparam.ttest2(Y1, Y2)
+                                    # p < 0.05 needs at least 20 distinct permutations (3 laps per group);
+                                    # use every permutation when there are 1000 or fewer
+                                    if t.nPermUnique < 20:
+                                        st.error(f"These groups allow only {t.nPermUnique} distinct permutations, so a permutation test cannot reach p < 0.05. Use at least 3 laps per group.")
+                                    else:
+                                        iterations = -1 if t.nPermUnique <= 1000 else 1000
+                                        with st.spinner(f"Running {min(t.nPermUnique, 1000)} permutations..."):
+                                            ti = t.inference(alpha=0.05, two_tailed=True, iterations=iterations)
 
+                            if ti is not None:
                                 st.markdown("### 📝 Conclusion")
                                 if ti.h0reject:
                                     ranges = []
